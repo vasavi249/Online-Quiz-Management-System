@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: User List -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile">
+                    <div class="avatar" id="my-avatar">U</div>
+                    <span id="my-name">Loading...</span>
+                </div>
+                <button class="btn btn-outline" style="width: auto; padding: 5px 10px; font-size: 13px; margin:0;" onclick="App.logout()">Logout</button>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="search-users" placeholder="Search or start new chat">
+            </div>
+            <div class="user-list" id="user-list">
+                <!-- Users load here -->
+            </div>
+        </div>
+
+        <!-- Main Chat Window -->
+        <div class="chat-window">
+            <div class="chat-header" id="chat-header" style="display: none;">
+                <div class="avatar" id="active-avatar">?</div>
+                <div class="user-item-info">
+                    <h4 id="active-name">Select a user</h4>
+                    <p>Online</p>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div style="margin: auto; text-align: center; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
+                    <h2>ChatApp for Web</h2>
+                    <p>Select a user to start messaging.</p>
+                </div>
+            </div>
+
+            <div class="chat-input" id="chat-input-container" style="display: none;">
+                <input type="text" id="msg-input" placeholder="Type a message">
+                <button id="btn-send">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let allUsers = [];
+        let pollingInterval = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(!App.state.user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Setup Profile
+            document.getElementById('my-name').textContent = App.state.user.full_name;
+            document.getElementById('my-avatar').textContent = App.state.user.full_name[0].toUpperCase();
+
+            // Load Users
+            await loadUsers();
+
+            // Search filter
+            document.getElementById('search-users').addEventListener('input', (e) => {
+                renderUsers(e.target.value.toLowerCase());
+            });
+
+            // Send message
+            document.getElementById('btn-send').addEventListener('click', sendMessage);
+            document.getElementById('msg-input').addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') sendMessage();
+            });
+        });
+
+        async function loadUsers() {
+            try {
+                allUsers = await App.api('/users/');
+                // Remove self from list
+                allUsers = allUsers.filter(u => u.username !== App.state.user.username);
+                renderUsers();
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        function renderUsers(filter = '') {
+            const list = document.getElementById('user-list');
+            list.innerHTML = allUsers
+                .filter(u => u.full_name.toLowerCase().includes(filter) || u.username.toLowerCase().includes(filter))
+                .map(u => `
+                    <div class="user-item ${App.state.activeChat?.username === u.username ? 'active' : ''}" onclick="selectChat('${u.username}')">
+                        <div class="avatar" style="background: var(--primary);">${u.full_name[0].toUpperCase()}</div>
+                        <div class="user-item-info">
+                            <h4>${u.full_name}</h4>
+                            <p>@${u.username}</p>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        window.selectChat = function(username) {
+            const selectedUser = allUsers.find(u => u.username === username);
+            App.state.activeChat = selectedUser;
+            
+            // Update UI
+            document.getElementById('chat-header').style.display = 'flex';
+            document.getElementById('chat-input-container').style.display = 'flex';
+            document.getElementById('active-name').textContent = selectedUser.full_name;
+            document.getElementById('active-avatar').textContent = selectedUser.full_name[0].toUpperCase();
+            
+            renderUsers(document.getElementById('search-users').value);
+            
+            // Load messages and start polling
+            loadMessages();
+            if(pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(loadMessages, 3000); // Poll every 3 seconds
+        };
+
+        async function loadMessages() {
+            if(!App.state.activeChat) return;
+            
+            try {
+                // We use the conversation endpoint to get all chats for the current user
+                // Then filter them down to just the ones with the activeChat user
+                const allMyChats = await App.api(`/conversation/${App.state.user.username}/`);
+                
+                const currentChatMessages = allMyChats.filter(c => 
+                    (c.sender === App.state.user.username && c.receiver === App.state.activeChat.username) ||
+                    (c.sender === App.state.activeChat.username && c.receiver === App.state.user.username)
+                );
+
+                const chatContainer = document.getElementById('chat-messages');
+                
+                if(currentChatMessages.length === 0) {
+                    chatContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); margin-top: 20px;">No messages yet. Say hi!</div>';
+                    return;
+                }
+
+                chatContainer.innerHTML = currentChatMessages.map(m => {
+                    const isSent = m.sender === App.state.user.username;
+                    const time = new Date(m.sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    return `
+                        <div class="message ${isSent ? 'message-sent' : 'message-recv'}" id="msg-${m.id}">
+                            ${m.message}
+                            <span class="time">${time}</span>
+                            ${isSent ? `
+                                <div class="message-actions">
+                                    <button onclick="deleteMessage('${m.id}')">🗑️</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                // Scroll to bottom
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if(!text || !App.state.activeChat) return;
+
+            input.value = '';
+
+            try {
+                await App.api('/chats/send/', 'POST', {
+                    chat_id: Math.floor(Math.random() * 100000),
+                    sender: App.state.user.username,
+                    receiver: App.state.activeChat.username,
+                    message: text,
+                    sent_at: new Date().toISOString()
+                });
+                
+                // Immediately refresh chat
+                loadMessages();
+            } catch(err) {
+                console.error('Failed to send message');
+            }
+        }
+
+        window.deleteMessage = async function(msgId) {
+            if(confirm('Delete this message?')) {
+                try {
+                    await App.api(`/chats/delete/${msgId}/`, 'DELETE');
+                    loadMessages();
+                } catch(err) {
+                    console.error('Failed to delete message');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

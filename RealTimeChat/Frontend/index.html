@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat Application</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="background: var(--bg-dark); align-items: center; justify-content: center;">
+    
+    <div class="auth-container" style="text-align: center; width: 400px;">
+        <h1 style="color: var(--primary); font-size: 32px; margin-bottom: 10px;">💬 ChatApp</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 40px;">Connect instantly with your team.</p>
+        
+        <button class="btn btn-primary" onclick="window.location.href='login.html'" style="margin-bottom: 15px;">Login to Account</button>
+        <button class="btn btn-outline" onclick="window.location.href='register.html'" style="border: 1px solid var(--border); color: var(--text-primary);">Create New Account</button>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        if(App.state.user) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+</html>
