@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Results - QuizApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo"><span>📚</span> QuizApp</div>
+            <div class="nav-links" id="nav-links"></div>
+            <div class="auth-buttons" id="auth-buttons"></div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 40px;">
+        <h2 style="margin-bottom: 24px; font-size: 28px;">My Results History</h2>
+        
+        <div class="grid-3" id="results-grid"></div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(!App.state.user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                let results = await App.api('/results/');
+                if(App.state.user.role !== 'admin') {
+                    results = results.filter(r => r.student_name === App.state.user.full_name);
+                }
+
+                const container = document.getElementById('results-grid');
+                if(results.length === 0) {
+                    container.innerHTML = '<p>No results found.</p>';
+                    return;
+                }
+
+                container.innerHTML = results.reverse().map(r => `
+                    <div class="card" style="text-align: center; border-top: 4px solid ${r.result_status === 'Pass' ? 'var(--success)' : 'var(--danger)'}">
+                        <h3 style="margin-bottom: 15px;">${r.quiz_title}</h3>
+                        <div style="font-size: 48px; font-weight: bold; color: ${r.result_status === 'Pass' ? 'var(--success)' : 'var(--danger)'}; margin-bottom: 10px;">
+                            ${r.percentage}%
+                        </div>
+                        <p style="color: var(--text-muted); margin-bottom: 5px;">Score: ${r.obtained_marks} / ${r.total_marks}</p>
+                        <span class="badge ${r.result_status === 'Pass' ? 'badge-success' : 'badge-danger'}" style="font-size: 14px; padding: 6px 12px; display: inline-block; margin-top: 10px;">
+                            ${r.result_status.toUpperCase()}
+                        </span>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

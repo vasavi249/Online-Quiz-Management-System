@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizApplication - Home</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span>📚</span> QuizApp
+            </div>
+            <div class="nav-links" id="nav-links"></div>
+            <div class="auth-buttons" id="auth-buttons"></div>
+        </div>
+    </nav>
+
+    <div class="container" style="text-align: center; margin-top: 80px;">
+        <h1 style="font-size: 48px; color: var(--secondary); margin-bottom: 20px;">Master Your Skills with Online Quizzes</h1>
+        <p style="font-size: 20px; color: var(--text-muted); margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            Join thousands of students testing their knowledge in Programming, Science, Mathematics, and more.
+        </p>
+        <button class="btn btn-primary" style="font-size: 18px; padding: 15px 30px;" onclick="window.location.href='register.html'">Get Started for Free</button>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        if(App.state.user) {
+            window.location.href = App.state.user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+        }
+    </script>
+</body>
+</html>

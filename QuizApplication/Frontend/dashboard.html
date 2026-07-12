@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - QuizApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo"><span>📚</span> QuizApp</div>
+            <div class="nav-links" id="nav-links"></div>
+            <div class="auth-buttons" id="auth-buttons"></div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 40px;">
+        <h2 style="margin-bottom: 24px; font-size: 28px;">Available Quizzes</h2>
+        <div class="grid-3" id="quiz-grid">
+            <!-- Quizzes load here -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(!App.state.user || App.state.user.role === 'admin') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const quizzes = await App.api('/quizzes/');
+                document.getElementById('quiz-grid').innerHTML = quizzes.map(q => `
+                    <div class="card" style="border-top: 4px solid var(--primary)">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                            <h3 style="font-size: 20px; color: var(--secondary)">${q.quiz_title}</h3>
+                            <span class="badge badge-primary">${q.category}</span>
+                        </div>
+                        <div style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+                            <p style="margin-bottom: 5px;">Total Questions: <strong>${q.total_questions}</strong></p>
+                            <p style="margin-bottom: 5px;">Total Marks: <strong>${q.total_marks}</strong></p>
+                            <p>Duration: <strong>${q.duration} mins</strong></p>
+                        </div>
+                        <button class="btn btn-outline btn-block" onclick="startQuiz('${q.quiz_title}')">Start Quiz</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        function startQuiz(title) {
+            // Save current quiz title to localStorage for the next page to use
+            localStorage.setItem('current_quiz', title);
+            window.location.href = 'quiz.html';
+        }
+    </script>
+</body>
+</html>

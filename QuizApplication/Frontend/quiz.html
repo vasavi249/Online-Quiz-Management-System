@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attempt Quiz - QuizApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo"><span>📚</span> QuizApp</div>
+            <div class="nav-links" id="nav-links"></div>
+            <div class="auth-buttons" id="auth-buttons"></div>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 800px; margin-top: 40px;">
+        <div class="card">
+            <div class="quiz-header">
+                <h2 id="quiz-title">Loading...</h2>
+                <div class="badge badge-danger" style="font-size: 16px; padding: 6px 12px;">
+                    Time Left: <span id="timer">--:--</span>
+                </div>
+            </div>
+
+            <div id="question-container" style="margin-bottom: 30px;">
+                <h3 id="question-text" style="margin-bottom: 20px; font-size: 20px; color: var(--secondary)">Loading Question...</h3>
+                <div id="options-container">
+                    <!-- Options load here -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn btn-outline" id="btn-prev" style="display: none;">Previous</button>
+                <button class="btn btn-primary" id="btn-next">Next</button>
+                <button class="btn btn-success" id="btn-submit" style="display: none; background: var(--success); color: white;">Submit Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let questions = [];
+        let currentIdx = 0;
+        let userAnswers = {};
+        let quizTitle = localStorage.getItem('current_quiz');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(!App.state.user || !quizTitle) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('quiz-title').textContent = quizTitle;
+
+            try {
+                const allQs = await App.api('/questions/');
+                questions = allQs.filter(q => q.quiz_title === quizTitle);
+                
+                if(questions.length === 0) {
+                    document.getElementById('question-text').textContent = "No questions available for this quiz.";
+                    document.getElementById('btn-next').style.display = 'none';
+                    return;
+                }
+
+                renderQuestion();
+                startTimer(20 * 60); // Mock 20 mins for demo
+
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        function renderQuestion() {
+            const q = questions[currentIdx];
+            document.getElementById('question-text').textContent = `Q${currentIdx + 1}. ${q.question}`;
+            
+            const selected = userAnswers[currentIdx];
+            
+            document.getElementById('options-container').innerHTML = [q.option1, q.option2, q.option3, q.option4].map(opt => `
+                <button class="option-btn ${selected === opt ? 'selected' : ''}" onclick="selectOption('${opt}')">${opt}</button>
+            `).join('');
+
+            document.getElementById('btn-prev').style.display = currentIdx > 0 ? 'block' : 'none';
+            
+            if (currentIdx === questions.length - 1) {
+                document.getElementById('btn-next').style.display = 'none';
+                document.getElementById('btn-submit').style.display = 'block';
+            } else {
+                document.getElementById('btn-next').style.display = 'block';
+                document.getElementById('btn-submit').style.display = 'none';
+            }
+        }
+
+        window.selectOption = function(opt) {
+            userAnswers[currentIdx] = opt;
+            renderQuestion();
+        }
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if(currentIdx < questions.length - 1) {
+                currentIdx++;
+                renderQuestion();
+            }
+        });
+
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if(currentIdx > 0) {
+                currentIdx--;
+                renderQuestion();
+            }
+        });
+
+        document.getElementById('btn-submit').addEventListener('click', async () => {
+            let correct = 0;
+            
+            // Log attempts and calculate score
+            for(let i=0; i<questions.length; i++) {
+                let ans = userAnswers[i] || '';
+                if(ans === questions[i].correct_answer) correct++;
+                
+                // Submit attempt
+                if(ans !== '') {
+                    await App.api('/attempts/add/', 'POST', {
+                        attempt_id: Math.floor(Math.random() * 10000),
+                        student_name: App.state.user.full_name,
+                        quiz_title: quizTitle,
+                        question: questions[i].question,
+                        selected_answer: ans,
+                        submission_time: new Date().toISOString()
+                    });
+                }
+            }
+
+            // Submit result
+            const totalMarks = 100;
+            const obtained = (correct / questions.length) * totalMarks;
+            const status = obtained >= 40 ? 'Pass' : 'Fail';
+
+            await App.api('/results/add/', 'POST', {
+                result_id: Math.floor(Math.random() * 10000),
+                student_name: App.state.user.full_name,
+                quiz_title: quizTitle,
+                total_marks: totalMarks,
+                obtained_marks: obtained,
+                percentage: obtained,
+                result_status: status
+            });
+
+            localStorage.removeItem('current_quiz');
+            window.location.href = 'result.html';
+        });
+
+        function startTimer(duration) {
+            let timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                document.getElementById('timer').textContent = minutes + ":" + seconds;
+                if (--timer < 0) {
+                    timer = 0;
+                    document.getElementById('btn-submit').click(); // auto submit
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

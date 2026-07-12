@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - QuizApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo" onclick="window.location.href='index.html'" style="cursor: pointer;">
+                <span>📚</span> QuizApp
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 450px; margin-top: 60px;">
+        <div class="card">
+            <h2 style="text-align: center; margin-bottom: 24px; font-size: 24px;">Welcome Back</h2>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px; padding: 12px;">Login</button>
+            </form>
+            <p style="text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted);">
+                Don't have an account? <a href="register.html">Register here</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const students = await App.api('/students/');
+                const user = students.find(s => s.email === email && s.password === password);
+                
+                if(user) {
+                    App.setUser(user);
+                    App.showToast('Login successful!');
+                    setTimeout(() => {
+                        window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+                    }, 1000);
+                } else {
+                    App.showToast('Invalid email or password', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
